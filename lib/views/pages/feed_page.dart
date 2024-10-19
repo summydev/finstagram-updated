@@ -13,6 +13,7 @@ class FeedPage extends StatefulWidget {
 class _FeedPageState extends State<FeedPage> {
   double? _deviceHeight, _deviceWidth;
   FirebaseService? _firebaseService;
+
   @override
   void initState() {
     super.initState();
@@ -26,40 +27,120 @@ class _FeedPageState extends State<FeedPage> {
     return SizedBox(
       height: _deviceHeight,
       width: _deviceWidth,
-      child: _ListPosts(),
+      child: _listPosts(),
     );
   }
 
-  Widget _ListPosts() {
+  Widget _listPosts() {
     return StreamBuilder<QuerySnapshot>(
-        stream: _firebaseService!.getLatestPosts(),
-        builder: (BuildContext context, AsyncSnapshot snapshot) {
-          if (snapshot.hasData) {
-            List posts =snapshot.data!.docs.map((e)=>e.data()).toList();
-            return ListView.builder(itemCount: posts.length, itemBuilder: (BuildContext context, int index) {
+      stream: _firebaseService!.getLatestPosts(),
+      builder: (BuildContext context, AsyncSnapshot snapshot) {
+        if (snapshot.hasData) {
+          List posts = snapshot.data!.docs.map((e) => e.data()).toList();
+          return ListView.builder(
+            itemCount: posts.length,
+            itemBuilder: (BuildContext context, int index) {
               Map post = posts[index];
-              return Container(
-                margin: EdgeInsets.symmetric(
-                    vertical: _deviceHeight! * 0.01,
-                    horizontal: _deviceWidth! * 0.05
-                ),
-                height: _deviceHeight! * 0.30,
-                decoration: BoxDecoration(
+              return _postCard(post);
+            },
+          );
+        } else {
+          return const Center(
+            child: CircularProgressIndicator(
+              color: Colors.blue,
+            ),
+          );
+        }
+      },
+    );
+  }
 
-                    image: DecorationImage(fit: BoxFit.cover, image: NetworkImage(
-                      post["image"],
-
-                    ))
+  Widget _postCard(Map post) {
+    return FutureBuilder<DocumentSnapshot>(
+      future: _firebaseService!.getUserById(post["userId"]),
+      builder: (context, AsyncSnapshot<DocumentSnapshot> userSnapshot) {
+        if (userSnapshot.hasData) {
+          var user = userSnapshot.data!.data() as Map<String, dynamic>;
+          return Card(
+            margin: EdgeInsets.symmetric(
+              vertical: _deviceHeight! * 0.01,
+              horizontal: _deviceWidth! * 0.05,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            elevation: 5,
+            child: Column(
+              children: [
+                ListTile(
+                  leading: CircleAvatar(
+                    backgroundImage: NetworkImage(
+                      user["image"] ?? 'https://via.placeholder.com/150', // Fallback image
+                    ),
+                  ),
+                  title: Text(
+                    user["name"] ?? "Unknown User", // Fallback username
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text(
+                    _formatTimestamp(post["timestamp"] ?? Timestamp.now()), // Fallback timestamp
+                  ),
                 ),
-              );
-            },);
-          } else {
-            return const Center(
-              child: CircularProgressIndicator(
-                color: Colors.blue,
-              ),
-            );
-          }
-        });
+                Container(
+                  height: _deviceHeight! * 0.35,
+                  decoration: BoxDecoration(
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(10),
+                      topRight: Radius.circular(10),
+                    ),
+                    image: DecorationImage(
+                      fit: BoxFit.cover,
+                      image: NetworkImage(post["image"] ?? 'https://via.placeholder.com/300'), // Fallback post image
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Text(
+                    post["caption"] ?? "No caption available", // Fallback caption
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                ),
+                const Divider(),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 5.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _likeButton(),
+                      const Icon(Icons.comment, color: Colors.grey),
+                      const Icon(Icons.share, color: Colors.grey),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        } else {
+          return const Center(
+            child: CircularProgressIndicator(),
+          );
+        }
+      },
+    );
+  }
+
+  Widget _likeButton() {
+    return IconButton(
+      icon: const Icon(Icons.favorite_border, color: Colors.red),
+      onPressed: () {
+        // Handle like button functionality
+      },
+    );
+  }
+
+  String _formatTimestamp(Timestamp timestamp) {
+    DateTime dateTime = timestamp.toDate();
+    return "${dateTime.day}/${dateTime.month}/${dateTime.year}";
   }
 }

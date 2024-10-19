@@ -107,7 +107,12 @@ class FirebaseService {
         .where('userId', isEqualTo: userId)
         .snapshots();
   }
+
   Future<void> logout()async{
     await _auth.signOut();
+  }
+
+  Future<DocumentSnapshot> getUserById(String userId) async {
+    return await _db.collection('users').doc(userId).get();
   }
 }
